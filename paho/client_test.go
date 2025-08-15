@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"testing"
@@ -674,6 +675,46 @@ func TestReceiveServerDisconnect(t *testing.T) {
 	require.NoError(t, err)
 
 	<-rChan
+}
+
+func TestReceiveServerDisconnectNoProps(t *testing.T) {
+	clientLogger := paholog.NewTestLogger(t, "ServerDisconnectNoProps:")
+	rChan := make(chan struct{})
+	conn, clientConn := net.Pipe()
+
+	c := NewClient(ClientConfig{
+		Conn: packets.NewThreadSafeConn(clientConn),
+		OnServerDisconnect: func(d *Disconnect) {
+			assert.Equal(t, byte(packets.DisconnectAdministrativeAction), d.ReasonCode)
+			close(rChan)
+		},
+	})
+	require.NotNil(t, c)
+	defer c.close()
+	c.SetDebugLogger(clientLogger)
+
+	clientCtx := basicClientInitialisation(c)
+	c.publishPackets = make(chan *packets.Publish)
+	c.workers.Add(1)
+	go func() {
+		defer c.workers.Done()
+		c.incoming(clientCtx)
+	}()
+	c.config.Session.ConAckReceived(c.config.Conn, &packets.Connect{}, &packets.Connack{})
+
+	// Hack: Paho adds a 0 for the properties length field when packing a
+	// Disconnect packet, so we need to manually write to the connection.
+	// Header + Message length 1 + reason code
+	_, err := conn.Write([]byte{0xe0, 1, packets.DisconnectAdministrativeAction})
+
+	require.NoError(t, err)
+	require.False(t, waitTimeout(&c.workers, time.Second))
+
+	select {
+	case <-rChan:
+	case <-time.After(time.Second):
+		t.Fatalf("Expected OnServerDisconnect to be called")
+	}
 }
 
 func TestAuthenticate(t *testing.T) {
