@@ -1,13 +1,13 @@
 module github.com/eclipse/paho.golang
 
-go 1.23
+go 1.24.0
 
 require (
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/stretchr/testify v1.8.4
-	go.uber.org/goleak v1.2.1
-	golang.org/x/net v0.35.0
+	github.com/stretchr/testify v1.11.1
+	go.uber.org/goleak v1.3.0
+	golang.org/x/net v0.43.0
 )
 
 require (
