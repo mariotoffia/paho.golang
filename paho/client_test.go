@@ -677,11 +677,24 @@ func TestReceiveServerDisconnect(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	clientLogger := paholog.NewTestLogger(t, "Authenticate:")
-	ts := basictestserver.New(paholog.NewTestLogger(t, "TestServer:"))
-	ts.SetResponse(packets.AUTH, &packets.Auth{
-		ReasonCode: packets.AuthSuccess,
+	t.Run("Success", func(t *testing.T) {
+		testAuthenticate(t, true, &packets.Auth{
+			ReasonCode: packets.AuthSuccess,
+		})
 	})
+
+	t.Run("Error", func(t *testing.T) {
+		testAuthenticate(t, false, &packets.Disconnect{
+			ReasonCode: packets.DisconnectNotAuthorized,
+		})
+	})
+}
+
+func testAuthenticate(t *testing.T, wantSucces bool, response packets.Packet) {
+	t.Helper()
+	clientLogger := paholog.NewTestLogger(t, t.Name()+":")
+	ts := basictestserver.New(paholog.NewTestLogger(t, "TestServer:"))
+	ts.SetResponse(packets.AUTH, response)
 	go ts.Run()
 	defer ts.Stop()
 
@@ -716,7 +729,7 @@ func TestAuthenticate(t *testing.T) {
 		},
 	})
 	require.Nil(t, err)
-	assert.True(t, ar.Success)
+	assert.Equal(t, wantSucces, ar.Success)
 
 	time.Sleep(10 * time.Millisecond)
 }
