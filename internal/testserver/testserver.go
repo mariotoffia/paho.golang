@@ -231,6 +231,11 @@ func (i *Instance) handleIncoming(conn io.Reader, out chan<- *packets.ControlPac
 // future enhancements
 func (i *Instance) handleOutgoing(in <-chan *packets.ControlPacket, out io.Writer) {
 	for p := range in {
+		if p == nil {
+			// Nil packet signals an intentional disconnect from processIncoming.
+			i.logger.Println("closing connection on request")
+			return
+		}
 		i.logger.Println("Sending packet to client ", p)
 		_, _ = p.WriteTo(out)            // We can just ignore any errors (Close will be picked up in handleIncoming, and the chan closed)
 		time.Sleep(delayBetweenOutdoing) // Slow down responses to enable multiple inflight messages
