@@ -5,8 +5,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/eclipse/paho.golang/packets"
-	"github.com/eclipse/paho.golang/paho/session"
+	"github.com/mariotoffia/paho.golang/packets"
+	"github.com/mariotoffia/paho.golang/paho/session"
 	"github.com/stretchr/testify/require"
 )
 

@@ -26,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/eclipse/paho.golang/autopaho"
-	"github.com/eclipse/paho.golang/paho"
-	"github.com/eclipse/paho.golang/paho/session/state"
-	storefile "github.com/eclipse/paho.golang/paho/store/file"
+	"github.com/mariotoffia/paho.golang/autopaho"
+	"github.com/mariotoffia/paho.golang/paho"
+	"github.com/mariotoffia/paho.golang/paho/session/state"
+	storefile "github.com/mariotoffia/paho.golang/paho/store/file"
 )
 
 func main() {

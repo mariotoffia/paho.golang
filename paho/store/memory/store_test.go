@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eclipse/paho.golang/packets"
+	"github.com/mariotoffia/paho.golang/packets"
 )
 
 // TestMemoryStore basic tests of the memory store

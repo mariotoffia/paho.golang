@@ -1,4 +1,4 @@
-module github.com/eclipse/paho.golang
+module github.com/mariotoffia/paho.golang
 
 go 1.24.0
 

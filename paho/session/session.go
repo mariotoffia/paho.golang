@@ -20,8 +20,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/eclipse/paho.golang/packets"
-	paholog "github.com/eclipse/paho.golang/paho/log"
+	"github.com/mariotoffia/paho.golang/packets"
+	paholog "github.com/mariotoffia/paho.golang/paho/log"
 )
 
 // The session state includes:

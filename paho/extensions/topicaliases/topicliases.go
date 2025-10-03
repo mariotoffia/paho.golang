@@ -18,7 +18,7 @@ package topicaliases
 import (
 	"sync"
 
-	"github.com/eclipse/paho.golang/paho"
+	"github.com/mariotoffia/paho.golang/paho"
 )
 
 type TAHandler struct {

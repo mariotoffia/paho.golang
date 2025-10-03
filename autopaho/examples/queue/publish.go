@@ -23,11 +23,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/eclipse/paho.golang/autopaho"
-	"github.com/eclipse/paho.golang/autopaho/queue"
-	"github.com/eclipse/paho.golang/autopaho/queue/file"
-	"github.com/eclipse/paho.golang/autopaho/queue/memory"
-	"github.com/eclipse/paho.golang/paho"
+	"github.com/mariotoffia/paho.golang/autopaho"
+	"github.com/mariotoffia/paho.golang/autopaho/queue"
+	"github.com/mariotoffia/paho.golang/autopaho/queue/file"
+	"github.com/mariotoffia/paho.golang/autopaho/queue/memory"
+	"github.com/mariotoffia/paho.golang/paho"
 )
 
 // the Queue interface does not include WaitForEmpty because it's not needed in autopaho; however it's

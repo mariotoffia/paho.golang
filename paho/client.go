@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eclipse/paho.golang/packets"
-	"github.com/eclipse/paho.golang/paho/log"
-	"github.com/eclipse/paho.golang/paho/session"
-	"github.com/eclipse/paho.golang/paho/session/state"
+	"github.com/mariotoffia/paho.golang/packets"
+	"github.com/mariotoffia/paho.golang/paho/log"
+	"github.com/mariotoffia/paho.golang/paho/session"
+	"github.com/mariotoffia/paho.golang/paho/session/state"
 )
 
 const defaultSendAckInterval = 50 * time.Millisecond

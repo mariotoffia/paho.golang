@@ -27,14 +27,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eclipse/paho.golang/autopaho/queue"
-	"github.com/eclipse/paho.golang/autopaho/queue/memory"
-	"github.com/eclipse/paho.golang/packets"
-	"github.com/eclipse/paho.golang/paho/log"
-	"github.com/eclipse/paho.golang/paho/session/state"
 	"github.com/gorilla/websocket"
+	"github.com/mariotoffia/paho.golang/autopaho/queue"
+	"github.com/mariotoffia/paho.golang/autopaho/queue/memory"
+	"github.com/mariotoffia/paho.golang/packets"
+	"github.com/mariotoffia/paho.golang/paho/log"
+	"github.com/mariotoffia/paho.golang/paho/session/state"
 
-	"github.com/eclipse/paho.golang/paho"
+	"github.com/mariotoffia/paho.golang/paho"
 )
 
 // AutoPaho is a wrapper around github.com/eclipse/paho.golang that simplifies the connection process; it automates

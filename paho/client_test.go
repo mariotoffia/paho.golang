@@ -27,10 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eclipse/paho.golang/internal/basictestserver"
-	"github.com/eclipse/paho.golang/packets"
-	paholog "github.com/eclipse/paho.golang/paho/log"
 	"github.com/google/go-cmp/cmp"
+	"github.com/mariotoffia/paho.golang/internal/basictestserver"
+	"github.com/mariotoffia/paho.golang/packets"
+	paholog "github.com/mariotoffia/paho.golang/paho/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
