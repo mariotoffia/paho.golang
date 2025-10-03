@@ -36,12 +36,12 @@ func TestPacketIdAllocateAndFreeAll(t *testing.T) {
 	// Use full band
 	cpChan := make(chan packets.ControlPacket)
 	for i := uint16(1); i != 0; i++ {
-		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan)
+		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan, false)
 		assert.Equal(t, i, v)
 	}
 
 	// Trying to allocate another ID should fail
-	_, err := ss.allocateNextPacketId(packets.PUBLISH, cpChan)
+	_, err := ss.allocateNextPacketId(packets.PUBLISH, cpChan, false)
 	assert.ErrorIs(t, err, session.ErrPacketIdentifiersExhausted)
 
 	// Free all Mids
@@ -76,7 +76,7 @@ func TestPacketIdAllocateAndFreeAll(t *testing.T) {
 
 	// Allocate all Mids again
 	for i := uint16(1); i != 0; i++ {
-		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan)
+		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan, false)
 		assert.Equal(t, i, v)
 	}
 
@@ -117,7 +117,7 @@ func TestPacketIdHoles(t *testing.T) {
 
 	// Allocate all Mids
 	for i := uint16(1); i != 0; i++ {
-		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan)
+		v, _ := ss.allocateNextPacketId(packets.PUBLISH, cpChan, false)
 		assert.Equal(t, i, v)
 	}
 
@@ -140,7 +140,7 @@ func TestPacketIdHoles(t *testing.T) {
 	}
 	t.Log("Num of holes:", len(h))
 	for i := 0; i < len(h); i++ {
-		_, err := ss.allocateNextPacketId(packets.PUBLISH, cpChan)
+		_, err := ss.allocateNextPacketId(packets.PUBLISH, cpChan, false)
 		assert.Nil(t, err)
 	}
 }

@@ -77,6 +77,7 @@ type (
 	// clientGenerated holds information on client-generated packets (e.g. an outgoing SUBSCRIBE request)
 	clientGenerated struct {
 		packetType byte // The type of the last packet sent (i.e. PUBLISH, SUBSCRIBE or UNSUBSCRIBE) - 0 means unknown until loaded from the store
+		skipStore  bool // True when the originating request opted out of persistence
 
 		// When a message is fully acknowledged, we need to let the requester know by sending the final response to this
 		// channel. One and only one message will be sent (the channel will then be closed to ensure this!).
@@ -261,6 +262,7 @@ func (s *State) ConAckReceived(conn io.Writer, cp *packets.Connect, ca *packets.
 		if _, ok := s.clientPackets[id]; !ok {
 			s.clientPackets[id] = clientGenerated{
 				packetType:   p.Type,
+				skipStore:    false,
 				responseChan: make(chan packets.ControlPacket, 1), // Nothing will wait on this
 			}
 		}
@@ -329,6 +331,20 @@ func (s *State) connectionLost(dp *packets.Disconnect) error {
 	s.conn, s.connCtx, s.connCtxCancel = nil, nil, nil
 	s.connectionLostAt = time.Now()
 
+	// Remove any client-generated packets that opted out of persistence
+	for packetID, cg := range s.clientPackets {
+		if !cg.skipStore {
+			continue
+		}
+		if cg.packetType == packets.PUBLISH || cg.packetType == packets.PUBREL {
+			if qErr := s.inflight.Release(); qErr != nil {
+				s.errors.Printf("quota release due to connection loss for %d: %s", packetID, qErr)
+			}
+		}
+		cg.responseChan <- packets.ControlPacket{}
+		delete(s.clientPackets, packetID)
+	}
+
 	if dp != nil && dp.Properties != nil && dp.Properties.SessionExpiryInterval != nil {
 		s.sessionExpiryInterval = *dp.Properties.SessionExpiryInterval
 	}
@@ -373,6 +389,7 @@ func (s *State) AddToSession(ctx context.Context, packet session.Packet, resp ch
 	}()
 
 	pt := packet.Type()
+	options := session.AddToSessionOptionsFromContext(ctx)
 
 	// Ensure only "RECEIVE MAXIMUM" PUBLISH transactions are in flight at any time
 	if pt == packets.PUBLISH {
@@ -389,7 +406,7 @@ func (s *State) AddToSession(ctx context.Context, packet session.Packet, resp ch
 	//     its a lot of messages
 	//     receive max often defaults to a fairly low value
 	//     Maximum recieve max is 65535 which matches the number of slots (so would also need a SUB/UNSUB in flight).
-	packetID, err := s.allocateNextPacketId(pt, resp)
+	packetID, err := s.allocateNextPacketId(pt, resp, options.SkipStore)
 	if err != nil {
 		if pt == packets.PUBLISH {
 			if qErr := s.inflight.Release(); qErr != nil {
@@ -399,7 +416,7 @@ func (s *State) AddToSession(ctx context.Context, packet session.Packet, resp ch
 		return err
 	}
 	packet.SetIdentifier(packetID)
-	if pt == packets.PUBLISH {
+	if pt == packets.PUBLISH && !options.SkipStore {
 		if err = s.clientStore.Put(packetID, pt, packet); err != nil {
 			s.mu.Lock()
 			delete(s.clientPackets, packetID)
@@ -427,8 +444,10 @@ func (s *State) endClientGenerated(packetID uint16, recv *packets.ControlPacket)
 			if qErr := s.inflight.Release(); qErr != nil {
 				s.errors.Printf("quota release due to %s: %s", recv.PacketType(), qErr)
 			}
-			if err := s.clientStore.Delete(packetID); err != nil {
-				s.errors.Printf("failed to remove message %d from store: %s", packetID, err)
+			if !cg.skipStore {
+				if err := s.clientStore.Delete(packetID); err != nil {
+					s.errors.Printf("failed to remove message %d from store: %s", packetID, err)
+				}
 			}
 		}
 	} else {
@@ -633,12 +652,13 @@ func (s *State) PacketReceived(recv *packets.ControlPacket, pubChan chan<- *pack
 
 // allocateNextPacketId assigns the next available packet ID
 // Callers must NOT hold lock on s.mu
-func (s *State) allocateNextPacketId(forPacketType byte, resp chan<- packets.ControlPacket) (uint16, error) {
+func (s *State) allocateNextPacketId(forPacketType byte, resp chan<- packets.ControlPacket, skipStore bool) (uint16, error) {
 	s.mu.Lock() // There may be a delay waiting for semaphore so check for connection before and after
 	defer s.mu.Unlock()
 
 	cg := clientGenerated{
 		packetType:   forPacketType,
+		skipStore:    skipStore,
 		responseChan: resp,
 	}
 
@@ -734,6 +754,7 @@ func (s *State) AllocateClientPacketIDForTest(packetID uint16, forPacketType byt
 	defer s.mu.Unlock()
 	s.clientPackets[packetID] = clientGenerated{
 		packetType:   forPacketType,
+		skipStore:    false,
 		responseChan: resp,
 	}
 }

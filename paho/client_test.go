@@ -273,6 +273,48 @@ func TestClientPublishQoS1(t *testing.T) {
 	assert.Equal(t, uint8(0), pa.ReasonCode)
 }
 
+func TestClientPublishQoS1NoQueue(t *testing.T) {
+	clientLogger := paholog.NewTestLogger(t, "ClientPublishQoS1NoQueue:")
+	ts := basictestserver.New(paholog.NewTestLogger(t, "TestServer:"))
+	ts.SetResponse(packets.PUBACK, &packets.Puback{
+		ReasonCode: packets.PubackSuccess,
+		Properties: &packets.Properties{},
+	})
+	go ts.Run()
+	defer ts.Stop()
+
+	c := NewClient(ClientConfig{
+		Conn: ts.ClientConn(),
+	})
+	require.NotNil(t, c)
+	defer c.close()
+	c.SetDebugLogger(clientLogger)
+
+	clientCtx := basicClientInitialisation(c)
+	c.publishPackets = make(chan *packets.Publish)
+	c.workers.Add(2)
+	go func() {
+		defer c.workers.Done()
+		c.incoming(clientCtx)
+	}()
+	go func() {
+		defer c.workers.Done()
+		c.config.PingHandler.Run(clientCtx, c.config.Conn, 30)
+	}()
+	c.config.Session.ConAckReceived(c.config.Conn, &packets.Connect{}, &packets.Connack{})
+
+	p := &Publish{
+		Topic:   "test/1",
+		QoS:     1,
+		Payload: []byte("test payload"),
+	}
+
+	res, err := c.PublishWithOptions(context.Background(), p, PublishOptions{Method: PublishMethod_Blocking_NoQueue})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, uint8(0), res.ReasonCode)
+}
+
 func TestClientPublishQoS2(t *testing.T) {
 	clientLogger := paholog.NewTestLogger(t, "ClientPublishQoS2:")
 	ts := basictestserver.New(paholog.NewTestLogger(t, "TestServer:"))
@@ -316,6 +358,67 @@ func TestClientPublishQoS2(t *testing.T) {
 	pr, err := c.Publish(context.Background(), p)
 	require.Nil(t, err)
 	assert.Equal(t, uint8(0), pr.ReasonCode)
+}
+
+func TestClientPublishQoS1NoQueueConnectionLost(t *testing.T) {
+	clientLogger := paholog.NewTestLogger(t, "ClientPublishQoS1NoQueueConnLost:")
+	ts := basictestserver.New(paholog.NewTestLogger(t, "TestServer:"))
+	go ts.Run()
+	stopped := false
+	defer func() {
+		if !stopped {
+			ts.Stop()
+		}
+	}()
+
+	c := NewClient(ClientConfig{
+		Conn: ts.ClientConn(),
+	})
+	require.NotNil(t, c)
+	defer c.close()
+	c.SetDebugLogger(clientLogger)
+
+	clientCtx := basicClientInitialisation(c)
+	c.publishPackets = make(chan *packets.Publish)
+	c.workers.Add(2)
+	go func() {
+		defer c.workers.Done()
+		c.incoming(clientCtx)
+	}()
+	go func() {
+		defer c.workers.Done()
+		c.config.PingHandler.Run(clientCtx, c.config.Conn, 30)
+	}()
+	c.config.Session.ConAckReceived(c.config.Conn, &packets.Connect{}, &packets.Connack{})
+
+	p := &Publish{
+		Topic:   "test/1",
+		QoS:     1,
+		Payload: []byte("test payload"),
+	}
+
+	type publishResult struct {
+		resp *PublishResponse
+		err  error
+	}
+	resCh := make(chan publishResult, 1)
+	go func() {
+		resp, err := c.PublishWithOptions(context.Background(), p, PublishOptions{Method: PublishMethod_Blocking_NoQueue})
+		resCh <- publishResult{resp: resp, err: err}
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	ts.Stop()
+	stopped = true
+
+	select {
+	case res := <-resCh:
+		require.Error(t, res.err)
+		require.ErrorIs(t, res.err, ErrConnectionLost)
+		assert.Nil(t, res.resp)
+	case <-time.After(2 * time.Second):
+		t.Fatal("publish did not complete")
+	}
 }
 
 func TestClientReceiveQoS0(t *testing.T) {

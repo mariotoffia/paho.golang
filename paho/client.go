@@ -813,6 +813,9 @@ func (c *Client) Unsubscribe(ctx context.Context, u *Unsubscribe) (*Unsuback, er
 // A PublishResponse is returned, which is relevant for QOS1+. For QOS0, a default success response is returned.
 // Note that a message may still be delivered even if Publish times out (once the message is part of the session state,
 // it may even be delivered following an application restart).
+//
+// PublishMethod_Blocking_NoQueue the publish is not persisted, so it will fail if the connection drops before the
+// transaction completes.
 // Warning: Publish may outlive the connection when QOS1+ (managed in `session_state`)
 func (c *Client) Publish(ctx context.Context, p *Publish) (*PublishResponse, error) {
 	return c.PublishWithOptions(ctx, p, PublishOptions{})
@@ -821,8 +824,9 @@ func (c *Client) Publish(ctx context.Context, p *Publish) (*PublishResponse, err
 type PublishMethod int
 
 const (
-	PublishMethod_Blocking  PublishMethod = iota // by default PublishWithOptions will block until the publish transaction is complete
-	PublishMethod_AsyncSend                      // PublishWithOptions will add the message to the session and then return (no method to check status is provided)
+	PublishMethod_Blocking         PublishMethod = iota // by default PublishWithOptions will block until the publish transaction is complete
+	PublishMethod_AsyncSend                             // PublishWithOptions will add the message to the session and then return (no method to check status is provided)
+	PublishMethod_Blocking_NoQueue                      // PublishWithOptions blocks for acknowledgments but skips session persistence/resends
 )
 
 // PublishOptions enables the behaviour of Publish to be modified
@@ -836,6 +840,9 @@ type PublishOptions struct {
 // timeout to fire. A PublishResponse is returned, which is relevant for QOS1+. For QOS0, a default success response is returned.
 // Note that a message may still be delivered even if Publish times out (once the message is part of the session state,
 // it may even be delivered following an application restart).
+//
+// PublishMethod_Blocking_NoQueue the publish is not persisted, so it will fail if the connection drops before the
+// transaction completes.
 // Warning: Publish may outlive the connection when QOS1+ (managed in `session_state`)
 func (c *Client) PublishWithOptions(ctx context.Context, p *Publish, o PublishOptions) (*PublishResponse, error) {
 	if p.QoS > c.serverProps.MaximumQoS {
@@ -880,6 +887,10 @@ func (c *Client) PublishWithOptions(ctx context.Context, p *Publish, o PublishOp
 func (c *Client) publishQoS12(ctx context.Context, pb *packets.Publish, o PublishOptions) (*PublishResponse, error) {
 	c.debug.Println("sending QoS12 message")
 	pubCtx, cf := context.WithTimeout(ctx, c.config.PacketTimeout)
+	// Report back directly to client and let client retry if needed.
+	if o.Method == PublishMethod_Blocking_NoQueue {
+		pubCtx = session.WithAddToSessionOptions(pubCtx, session.AddToSessionOptions{SkipStore: true})
+	}
 	defer cf()
 
 	ret := make(chan packets.ControlPacket, 1)
